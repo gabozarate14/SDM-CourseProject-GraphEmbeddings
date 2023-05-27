@@ -16,25 +16,6 @@ PASSWORD = 'admin123'
 driver = GraphDatabase.driver(DATABASE_URL, auth=(USER, PASSWORD))
 
 
-def resultToList(results):
-    r_list = []
-    for r in results:
-        r_list.append(dict(r))
-    return r_list
-
-
-def foldResultToDict(r_list):
-    r_dict = {}
-    for item in r_list:
-        key = item['id']
-        keyword = item['keyword']
-        if key in r_dict:
-            r_dict[key].append(keyword)
-        else:
-            r_dict[key] = [keyword]
-    return r_dict
-
-
 # Import the projection of the graph with the important information for the task
 
 query = """
