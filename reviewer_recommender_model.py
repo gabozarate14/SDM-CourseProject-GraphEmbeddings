@@ -7,6 +7,8 @@ from keras.models import Model
 from keras.layers import Input, Dense, Concatenate
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+# from gensim.models.deepwalk import DeepWalk
+
 from collections import Counter
 
 DATABASE_URL = f'bolt://localhost:7687'
@@ -62,15 +64,16 @@ reviewers_dict = foldResultToDict(results1 + results2)
 results = resultToList(driver.session().run(query_papers))
 papers_dict = foldResultToDict(results)
 
-# Import the full graph
+# Import the projection of the graph with the important information for the task
+#
+# query = """
+# MATCH (n)-[r]->(c) RETURN distinct *
+# """
 
 query = """
-MATCH (n)-[r]->(c) RETURN distinct *
+MATCH (k:Keyword)<-[]-(p:Paper)-[]->(a:Author)-[]->(o:Organization)
+RETURN  distinct *
 """
-
-# query = """
-# MATCH (p:Paper)-[r:REVIEWED_BY]->(a:Author) RETURN  distinct *
-# """
 
 results = driver.session().run(query)
 
@@ -86,7 +89,7 @@ for rel in rels:
     G.add_edge(rel.start_node.element_id, rel.end_node.element_id, key=rel.element_id, type=rel.type,
                properties=rel._properties)
 
-# Map the labels with the generated nodes of the networkx graph
+# Map the type with the generated nodes of the networkx graph
 
 rev_graph_dict = {}
 paper_graph_dict = {}
@@ -117,6 +120,10 @@ for kr, rev in rev_graph_dict.items():
 # Generate node embeddings using Node2Vec
 node2vec = Node2Vec(G, dimensions=128, walk_length=80, num_walks=10, p=1, q=1)
 model = node2vec.fit(window=10, min_count=1)
+
+# # Generate node embeddings using DeepWalk
+# deepwalk = DeepWalk(G, walk_length=10, num_walks=80, workers=1)
+# model = deepwalk.fit(window=5, min_count=1)
 
 
 # Prepare training data using the embeddings
@@ -149,3 +156,6 @@ model.fit([X_reviewer_train, X_paper_train], y_train, epochs=10, batch_size=32)
 y_pred = model.predict([X_reviewer_test, X_paper_test])
 y_pred = np.round(y_pred).flatten()
 print(classification_report(y_test, y_pred, zero_division=1))
+
+# Saving the model
+model.save('model/reviewer_recommender.h5')
